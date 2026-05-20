@@ -364,14 +364,7 @@ window.onload = () => {
 
 function logDebug(msg) {
     console.log("[QR-SYNC]", msg);
-    const debugOverlay = document.getElementById('debug-overlay');
-    const debugContent = document.getElementById('debug-content');
-    if (debugOverlay && debugContent) {
-        debugOverlay.classList.remove('hidden');
-        const line = document.createElement('div');
-        line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
-        debugContent.prepend(line);
-    }
+    // Visual debug removed as per user request
 }
 
 function checkLibrary() {
