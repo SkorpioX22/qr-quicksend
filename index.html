@@ -62,8 +62,12 @@
                     </div>
                 </div>
 
-                <div class="qr-canvas-container bg-white rounded-2xl overflow-hidden p-4">
+                <div class="qr-canvas-container bg-white rounded-2xl overflow-hidden p-4 relative">
                     <canvas id="qr-canvas" class="w-full h-full"></canvas>
+                    <div id="debug-overlay" class="absolute inset-0 bg-red-900/90 text-white p-4 text-xs font-mono overflow-auto hidden">
+                        <p class="font-bold mb-2">DEBUG LOG:</p>
+                        <div id="debug-content"></div>
+                    </div>
                 </div>
 
                 <div class="space-y-2">
@@ -139,14 +143,12 @@
         <p>Transfer files through the visual spectrum.</p>
     </footer>
 
-    <!-- Scripts -->
-    <!-- qrcodegen-js: Need to fetch a stable version -->
-    <script src="https://cdn.jsdelivr.net/npm/qrcodegen@1.8.0/qrcodegen.min.js"></script>
-    <!-- qr-scanner: Nimiq's fast scanner -->
-    <script src="https://cdn.jsdelivr.net/npm/qr-scanner@1.4.2/qr-scanner.umd.min.js"></script>
+    <!-- Local Libraries -->
+    <script src="lib/qrcodegen.js"></script>
+    <script src="lib/qr-scanner.umd.min.js"></script>
     <script>
-        // Configure worker path for the CDN version
-        QrScanner.WORKER_PATH = 'https://cdn.jsdelivr.net/npm/qr-scanner@1.4.2/qr-scanner-worker.min.js';
+        // Configure worker path for the local version
+        QrScanner.WORKER_PATH = 'lib/qr-scanner-worker.min.js';
     </script>
     <script src="app.js"></script>
     <script>
