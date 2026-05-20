@@ -56,9 +56,15 @@
                         <h2 id="file-name" class="font-semibold text-lg truncate max-w-[200px]">filename.ext</h2>
                         <p id="file-info" class="text-zinc-500 text-sm">0 KB • 0 chunks</p>
                     </div>
-                    <div class="flex items-center gap-2">
-                        <span class="text-xs text-zinc-500">Speed (FPS)</span>
-                        <input type="number" id="fps-input" value="30" min="1" max="60" class="bg-zinc-900 border border-zinc-700 rounded px-2 py-1 w-16 text-center text-sm">
+                    <div class="flex items-center gap-4">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs text-zinc-500">Chunk Size</span>
+                            <input type="number" id="chunk-size-input" value="450" min="50" max="1000" step="50" class="bg-zinc-900 border border-zinc-700 rounded px-2 py-1 w-20 text-center text-sm">
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs text-zinc-500">FPS</span>
+                            <input type="number" id="fps-input" value="30" min="1" max="60" class="bg-zinc-900 border border-zinc-700 rounded px-2 py-1 w-16 text-center text-sm">
+                        </div>
                     </div>
                 </div>
 

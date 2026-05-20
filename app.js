@@ -1,13 +1,15 @@
 // QR-Sync Core Logic
 
-const SENDER_CHUNK_SIZE = 450; 
+const SENDER_CHUNK_SIZE_DEFAULT = 450; 
 let senderChunks = [];
 let senderInterval = null;
 let currentChunkIndex = 0;
 let isSending = false;
 let senderFileMetadata = null;
+let currentFileBytes = null; // Store for re-chunking
 
 const receiverChunks = new Map();
+const receiverHitCount = new Map(); // Track duplicate receipts
 let receiverMetadata = null;
 let qrScanner = null;
 let isReceiving = false;
@@ -31,6 +33,14 @@ window.onload = () => {
     const dropZone = document.getElementById('drop-zone');
     const fileInput = document.getElementById('file-input');
     const transferControls = document.getElementById('transfer-controls');
+    const chunkSizeInput = document.getElementById('chunk-size-input');
+
+    // Re-chunk when size changes
+    chunkSizeInput.onchange = () => {
+        if (currentFileBytes) {
+            processChunks(currentFileBytes);
+        }
+    };
 
     // --- View Management ---
 
@@ -85,29 +95,33 @@ window.onload = () => {
 
         try {
             const arrayBuffer = await file.arrayBuffer();
-            const bytes = new Uint8Array(arrayBuffer);
-            
-            senderChunks = [];
-            for (let i = 0; i < bytes.length; i += SENDER_CHUNK_SIZE) {
-                senderChunks.push(bytes.slice(i, i + SENDER_CHUNK_SIZE));
-            }
+            currentFileBytes = new Uint8Array(arrayBuffer);
+            processChunks(currentFileBytes);
 
-            document.getElementById('file-name').textContent = file.name;
-            document.getElementById('file-info').textContent = `${(file.size / 1024).toFixed(1)} KB • ${senderChunks.length} chunks`;
-            
             dropZone.classList.add('hidden');
             transferControls.classList.remove('hidden');
             updateSenderProgress(0);
-            
-            // Initial preview QR (Metadata)
-            setTimeout(() => {
-                logDebug("Generating initial metadata QR...");
-                const initialPayload = `S|${senderFileMetadata.name}|${senderFileMetadata.size}|${senderChunks.length}|${senderFileMetadata.type}`;
-                renderQR(initialPayload);
-            }, 500);
         } catch (e) {
             logDebug(`File Error: ${e.message}`);
         }
+    }
+
+    function processChunks(bytes) {
+        const size = parseInt(document.getElementById('chunk-size-input').value) || SENDER_CHUNK_SIZE_DEFAULT;
+        senderChunks = [];
+        for (let i = 0; i < bytes.length; i += size) {
+            senderChunks.push(bytes.slice(i, i + size));
+        }
+
+        document.getElementById('file-name').textContent = senderFileMetadata.name;
+        document.getElementById('file-info').textContent = `${(senderFileMetadata.size / 1024).toFixed(1)} KB • ${senderChunks.length} chunks`;
+        
+        // Initial preview QR (Metadata)
+        setTimeout(() => {
+            logDebug(`Generating metadata QR (Chunk size: ${size})...`);
+            const initialPayload = `S|${senderFileMetadata.name}|${senderFileMetadata.size}|${senderChunks.length}|${senderFileMetadata.type}`;
+            renderQR(initialPayload);
+        }, 500);
     }
 
     function updateSenderProgress(pct) {
@@ -280,10 +294,13 @@ window.onload = () => {
             const index = parseInt(parts[1]);
             const b64Data = parts[2];
             
+            const count = (receiverHitCount.get(index) || 0) + 1;
+            receiverHitCount.set(index, count);
+            markChunkReceived(index, count);
+
             if (!receiverChunks.has(index)) {
                 receiverChunks.set(index, base64ToBytes(b64Data));
                 updateReceiverProgress();
-                markChunkReceived(index);
                 
                 if (receiverMetadata && receiverChunks.size === receiverMetadata.total) {
                     checkCompletion();
@@ -304,14 +321,20 @@ window.onload = () => {
         for (let i = 0; i < count; i++) {
             const dot = document.createElement('div');
             dot.id = `chunk-${i}`;
-            dot.className = 'w-1.5 h-1.5 bg-zinc-800 rounded-full';
+            dot.className = 'w-1.5 h-1.5 bg-zinc-800 rounded-full transition-colors duration-300';
             grid.appendChild(dot);
         }
     }
 
-    function markChunkReceived(index) {
+    function markChunkReceived(index, count) {
         const dot = document.getElementById(`chunk-${index}`);
-        if (dot) dot.className = 'w-1.5 h-1.5 bg-indigo-500 rounded-full';
+        if (dot) {
+            if (count > 1) {
+                dot.className = 'w-1.5 h-1.5 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.5)] transition-colors duration-300';
+            } else {
+                dot.className = 'w-1.5 h-1.5 bg-indigo-500 rounded-full transition-colors duration-300';
+            }
+        }
     }
 
     function updateReceiverProgress() {
