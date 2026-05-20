@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR-Sync | High-Speed Data Transfer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .qr-canvas-container { aspect-ratio: 1 / 1; }
+        #qr-canvas { image-rendering: pixelated; }
+        .glass-card {
+            background: rgba(23, 23, 23, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body class="bg-[#0a0a0a] text-zinc-100 min-h-screen flex flex-col items-center p-4 md:p-8">
+    
+    <!-- Header -->
+    <header class="w-full max-w-4xl flex justify-between items-center mb-12">
+        <div class="flex items-center gap-3">
+            <div class="p-2 bg-indigo-600 rounded-lg">
+                <i data-lucide="zap" class="w-6 h-6 text-white"></i>
+            </div>
+            <h1 class="text-2xl font-bold tracking-tight">QR-Sync</h1>
+        </div>
+        <div class="flex gap-4">
+            <button id="btn-mode-send" class="px-4 py-2 rounded-full bg-indigo-600 font-medium text-sm hover:bg-indigo-500 transition-colors">Send</button>
+            <button id="btn-mode-receive" class="px-4 py-2 rounded-full bg-zinc-800 font-medium text-sm hover:bg-zinc-700 transition-colors">Receive</button>
+        </div>
+    </header>
+
+    <main class="w-full max-w-2xl">
+        <!-- Sender View -->
+        <div id="view-send" class="space-y-6">
+            <div id="drop-zone" class="glass-card border-dashed border-2 border-zinc-700 rounded-3xl p-12 text-center cursor-pointer hover:border-indigo-500 transition-all group">
+                <input type="file" id="file-input" class="hidden">
+                <div class="flex flex-col items-center gap-4">
+                    <div class="p-4 bg-zinc-900 rounded-full group-hover:scale-110 transition-transform">
+                        <i data-lucide="upload-cloud" class="w-8 h-8 text-zinc-400 group-hover:text-indigo-400"></i>
+                    </div>
+                    <div>
+                        <p class="text-lg font-semibold">Drop photo or video here</p>
+                        <p class="text-zinc-500 text-sm">Max 20MB for optimal performance</p>
+                    </div>
+                </div>
+            </div>
+
+            <div id="transfer-controls" class="hidden glass-card rounded-3xl p-8 space-y-6">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h2 id="file-name" class="font-semibold text-lg truncate max-w-[200px]">filename.ext</h2>
+                        <p id="file-info" class="text-zinc-500 text-sm">0 KB • 0 chunks</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-zinc-500">Speed (FPS)</span>
+                        <input type="number" id="fps-input" value="30" min="1" max="60" class="bg-zinc-900 border border-zinc-700 rounded px-2 py-1 w-16 text-center text-sm">
+                    </div>
+                </div>
+
+                <div class="qr-canvas-container bg-white rounded-2xl overflow-hidden p-4">
+                    <canvas id="qr-canvas" class="w-full h-full"></canvas>
+                </div>
+
+                <div class="space-y-2">
+                    <div class="flex justify-between text-sm font-medium">
+                        <span>Sending data...</span>
+                        <span id="send-progress-pct">0%</span>
+                    </div>
+                    <div class="w-full bg-zinc-800 rounded-full h-2 overflow-hidden">
+                        <div id="send-progress-bar" class="bg-indigo-600 h-full w-0 transition-all duration-300"></div>
+                    </div>
+                </div>
+
+                <div class="flex gap-3">
+                    <button id="btn-start-send" class="flex-1 bg-indigo-600 py-3 rounded-xl font-semibold hover:bg-indigo-500 transition-colors">Start Transfer</button>
+                    <button id="btn-stop-send" class="bg-zinc-800 px-6 py-3 rounded-xl font-semibold hover:bg-zinc-700 transition-colors">Stop</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Receiver View -->
+        <div id="view-receive" class="hidden space-y-6">
+            <div id="camera-container" class="glass-card rounded-3xl overflow-hidden aspect-video relative">
+                <video id="camera-feed" class="w-full h-full object-cover"></video>
+                <div id="scan-overlay" class="absolute inset-0 border-2 border-indigo-500/50 flex items-center justify-center pointer-events-none">
+                    <div class="w-48 h-48 border-2 border-indigo-500 rounded-3xl"></div>
+                </div>
+                <div id="no-camera" class="absolute inset-0 bg-zinc-900 flex flex-col items-center justify-center hidden">
+                    <i data-lucide="camera-off" class="w-12 h-12 text-zinc-700 mb-4"></i>
+                    <p class="text-zinc-500">Camera permission required</p>
+                </div>
+            </div>
+
+            <div class="glass-card rounded-3xl p-8 space-y-6">
+                <div class="flex justify-between items-center">
+                    <h2 class="font-semibold text-lg">Receiving...</h2>
+                    <span id="receive-status" class="px-3 py-1 bg-zinc-900 text-zinc-500 rounded-full text-xs uppercase tracking-widest font-bold">Waiting</span>
+                </div>
+
+                <div class="space-y-4">
+                    <div class="flex justify-between text-sm">
+                        <span id="receive-file-info">Unknown file</span>
+                        <span id="receive-progress-pct">0%</span>
+                    </div>
+                    <div class="w-full bg-zinc-800 rounded-full h-4 overflow-hidden flex">
+                        <!-- Chunks visualization will be injected here -->
+                        <div id="receive-progress-bar" class="bg-indigo-600 h-full w-0 transition-all duration-300"></div>
+                    </div>
+                    <div id="chunk-grid" class="flex flex-wrap gap-0.5 max-h-24 overflow-y-auto">
+                        <!-- Individual chunk dots -->
+                    </div>
+                </div>
+
+                <div id="receive-actions" class="hidden flex flex-col gap-3">
+                    <div class="p-4 bg-emerald-900/20 border border-emerald-500/30 rounded-2xl flex items-center gap-4">
+                        <div class="p-2 bg-emerald-500 rounded-lg text-white">
+                            <i data-lucide="check" class="w-5 h-5"></i>
+                        </div>
+                        <div>
+                            <p class="font-semibold text-emerald-400">Transfer Complete</p>
+                            <p id="final-file-info" class="text-xs text-emerald-400/70">Ready to save</p>
+                        </div>
+                    </div>
+                    <button id="btn-download" class="w-full bg-emerald-600 py-4 rounded-xl font-bold text-lg hover:bg-emerald-500 transition-colors flex items-center justify-center gap-2">
+                        <i data-lucide="download" class="w-6 h-6"></i>
+                        Download File
+                    </button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="mt-auto pt-12 text-zinc-600 text-sm">
+        <p>Transfer files through the visual spectrum.</p>
+    </footer>
+
+    <!-- Scripts -->
+    <!-- qrcodegen-js: Need to fetch a stable version -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcodegen@1.8.0/qrcodegen.min.js"></script>
+    <!-- qr-scanner: Nimiq's fast scanner -->
+    <script src="https://cdn.jsdelivr.net/npm/qr-scanner@1.4.2/qr-scanner.umd.min.js"></script>
+    <script>
+        // Configure worker path for the CDN version
+        QrScanner.WORKER_PATH = 'https://cdn.jsdelivr.net/npm/qr-scanner@1.4.2/qr-scanner-worker.min.js';
+    </script>
+    <script src="app.js"></script>
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>
