@@ -92,6 +92,12 @@ async function handleFile(file) {
     dropZone.classList.add('hidden');
     transferControls.classList.remove('hidden');
     updateSenderProgress(0);
+    
+    // Initial preview QR (Metadata) - Slight delay to ensure DOM is ready
+    setTimeout(() => {
+        const initialPayload = `S|${senderFileMetadata.name}|${senderFileMetadata.size}|${senderChunks.length}|${senderFileMetadata.type}`;
+        renderQR(initialPayload);
+    }, 100);
 }
 
 function updateSenderProgress(pct) {
@@ -101,6 +107,7 @@ function updateSenderProgress(pct) {
 
 buttons.startSend.onclick = () => {
     if (isSending) return;
+    if (!checkLibrary()) return;
     isSending = true;
     currentChunkIndex = -10; // Extra metadata frames to help sync
     const fps = parseInt(document.getElementById('fps-input').value) || 30;
@@ -153,10 +160,27 @@ function sendNextFrame() {
     }
 }
 
+function checkLibrary() {
+    const lib = (typeof qrcodegen !== 'undefined') ? qrcodegen : (window.qrcodegen || null);
+    if (!lib || !lib.QrCode) {
+        alert("QR Library not loaded. Please check your internet connection and refresh.");
+        return null;
+    }
+    return lib.QrCode;
+}
+
 function renderQR(data) {
+    const canvas = document.getElementById('qr-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    
     try {
-        const qr = qrcodegen.QrCode.encodeText(data, qrcodegen.QrCode.Ecc.LOW);
+        const QrCode = checkLibrary();
+        if (!QrCode) return;
+
+        const qr = QrCode.encodeText(data, QrCode.Ecc.LOW);
         const scale = Math.max(2, Math.floor(600 / qr.size));
+        
         canvas.width = qr.size * scale;
         canvas.height = qr.size * scale;
         
@@ -172,7 +196,7 @@ function renderQR(data) {
             }
         }
     } catch (e) {
-        console.error("QR Error:", e);
+        console.error("QR Render Error:", e);
     }
 }
 
